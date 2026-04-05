@@ -120,3 +120,47 @@ export async function deleteCategory(id: string): Promise<boolean> {
   }
   return true;
 }
+
+export async function updateLink(id: string, updates: Partial<Link>): Promise<boolean> {
+  const supabaseUpdates: any = {};
+  if (updates.title !== undefined) supabaseUpdates.title = updates.title;
+  if (updates.url !== undefined) supabaseUpdates.url = updates.url;
+  if (updates.categoryId !== undefined) supabaseUpdates.category_id = updates.categoryId;
+  if (updates.icon !== undefined) supabaseUpdates.icon = updates.icon;
+  if (updates.customIcon !== undefined) supabaseUpdates.custom_icon = updates.customIcon;
+
+  // Ensure we can clear customIcon if null is passed
+  if (updates.customIcon === null) supabaseUpdates.custom_icon = null;
+
+  const { error } = await supabase
+    .from('links')
+    .update(supabaseUpdates)
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating link:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function updateCategory(id: string, updates: Partial<Category>): Promise<boolean> {
+  const supabaseUpdates: any = {};
+  if (updates.name !== undefined) supabaseUpdates.name = updates.name;
+  if (updates.icon !== undefined) supabaseUpdates.icon = updates.icon;
+  if (updates.customIcon !== undefined) supabaseUpdates.custom_icon = updates.customIcon;
+
+  // Ensure we can clear customIcon if null is passed
+  if (updates.customIcon === null) supabaseUpdates.custom_icon = null;
+
+  const { error } = await supabase
+    .from('categories')
+    .update(supabaseUpdates)
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating category:', error);
+    return false;
+  }
+  return true;
+}

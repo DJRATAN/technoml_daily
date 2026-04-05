@@ -4,7 +4,7 @@ export interface Link {
   url: string;
   categoryId: string;
   icon: string;
-  customIcon?: string; // Base64 string or image URL
+  customIcon?: string | null; // Base64 string or image URL
   createdAt: number;
 }
 
@@ -12,5 +12,5 @@ export interface Category {
   id: string;
   name: string;
   icon: string;
-  customIcon?: string; // Base64 string or image URL
+  customIcon?: string | null; // Base64 string or image URL
 }

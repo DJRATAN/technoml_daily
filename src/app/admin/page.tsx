@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getLinks, getCategories, addLink, addCategory, deleteLink, deleteCategory } from "@/lib/supabaseStorage";
+import { getLinks, getCategories, addLink, addCategory, deleteLink, deleteCategory, updateLink, updateCategory } from "@/lib/supabaseStorage";
 import type { Link as LinkType, Category } from "@/lib/storage";
 import { DynamicIcon } from "@/components/DynamicIcon";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, Upload, X } from "lucide-react";
 import { LoginForm } from "@/components/LoginForm";
+import { Edit2 } from "lucide-react";
 
 const ICON_LIST = ['globe', 'share-2', 'code', 'briefcase', 'wrench', 'folder', 'layout', 'settings', 'plus', 'star', 'heart', 'image', 'mail', 'music', 'video', 'github', 'twitter', 'linkedin'];
 
@@ -19,17 +20,19 @@ export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
 
   // Form States
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [linkCategory, setLinkCategory] = useState("");
   const [linkIcon, setLinkIcon] = useState("globe");
-  const [linkCustomIcon, setLinkCustomIcon] = useState<string | undefined>(undefined);
+  const [linkCustomIcon, setLinkCustomIcon] = useState<string | null | undefined>(undefined);
 
   const [categoryName, setCategoryName] = useState("");
   const [categoryIcon, setCategoryIcon] = useState("folder");
-  const [categoryCustomIcon, setCategoryCustomIcon] = useState<string | undefined>(undefined);
+  const [categoryCustomIcon, setCategoryCustomIcon] = useState<string | null | undefined>(undefined);
 
   const linkFileRef = useRef<HTMLInputElement>(null);
   const catFileRef = useRef<HTMLInputElement>(null);
@@ -78,13 +81,26 @@ export default function AdminPage() {
   const handleAddLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!linkTitle || !linkUrl || !linkCategory) return;
-    await addLink({
-      title: linkTitle,
-      url: linkUrl,
-      categoryId: linkCategory,
-      icon: linkIcon,
-      customIcon: linkCustomIcon
-    });
+    
+    if (editingLinkId) {
+      await updateLink(editingLinkId, {
+        title: linkTitle,
+        url: linkUrl,
+        categoryId: linkCategory,
+        icon: linkIcon,
+        customIcon: linkCustomIcon
+      });
+      setEditingLinkId(null);
+    } else {
+      await addLink({
+        title: linkTitle,
+        url: linkUrl,
+        categoryId: linkCategory,
+        icon: linkIcon,
+        customIcon: linkCustomIcon
+      });
+    }
+    
     setLinkTitle("");
     setLinkUrl("");
     setLinkCustomIcon(undefined);
@@ -95,14 +111,68 @@ export default function AdminPage() {
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoryName) return;
-    await addCategory({
-      name: categoryName,
-      icon: categoryIcon,
-      customIcon: categoryCustomIcon
-    });
+    
+    if (editingCategoryId) {
+      await updateCategory(editingCategoryId, {
+        name: categoryName,
+        icon: categoryIcon,
+        customIcon: categoryCustomIcon
+      });
+      setEditingCategoryId(null);
+    } else {
+      await addCategory({
+        name: categoryName,
+        icon: categoryIcon,
+        customIcon: categoryCustomIcon
+      });
+    }
+    
     setCategoryName("");
     setCategoryCustomIcon(undefined);
     await refreshData();
+  };
+
+  const startEditLink = (link: LinkType) => {
+    setEditingLinkId(link.id);
+    setLinkTitle(link.title);
+    setLinkUrl(link.url);
+    setLinkCategory(link.categoryId);
+    if (link.customIcon) {
+        setLinkCustomIcon(link.customIcon);
+        setLinkIcon("");
+    } else {
+        setLinkIcon(link.icon || "globe");
+        setLinkCustomIcon(undefined);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const startEditCategory = (cat: Category) => {
+    setEditingCategoryId(cat.id);
+    setCategoryName(cat.name);
+    if (cat.customIcon) {
+        setCategoryCustomIcon(cat.customIcon);
+        setCategoryIcon("");
+    } else {
+        setCategoryIcon(cat.icon || "folder");
+        setCategoryCustomIcon(undefined);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEditLink = () => {
+    setEditingLinkId(null);
+    setLinkTitle("");
+    setLinkUrl("");
+    setLinkCustomIcon(undefined);
+    setLinkIcon("globe");
+  };
+
+  const cancelEditCategory = () => {
+    setEditingCategoryId(null);
+    setCategoryName("");
+    setCategoryCustomIcon(undefined);
+    setCategoryIcon("folder");
   };
 
 
@@ -133,8 +203,13 @@ export default function AdminPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         {/* ADD LINK FORM */}
         <Card className="glass border-none shadow-none text-slate-200 rounded-2xl overflow-hidden">
-          <CardHeader>
-            <CardTitle className="text-xl text-slate-100">Add New Link</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-xl text-slate-100">{editingLinkId ? 'Edit Link' : 'Add New Link'}</CardTitle>
+            {editingLinkId && (
+              <Button variant="ghost" size="sm" onClick={cancelEditLink} className="text-slate-400 hover:text-white">
+                <X className="w-4 h-4 mr-1" /> Cancel
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddLink} className="space-y-5">
@@ -220,7 +295,7 @@ export default function AdminPage() {
                             <div className="flex items-center gap-2 px-2 py-1 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
                                 <img src={linkCustomIcon} className="w-4 h-4 object-contain rounded" />
                                 <span className="text-[9px] text-indigo-300 font-bold">READY</span>
-                                <button type="button" onClick={() => setLinkCustomIcon(undefined)}><X className="w-3 h-3 text-red-400" /></button>
+                                <button type="button" onClick={() => setLinkCustomIcon(editingLinkId ? null : undefined)}><X className="w-3 h-3 text-red-400" /></button>
                             </div>
                         )}
                     </div>
@@ -228,8 +303,8 @@ export default function AdminPage() {
               </div>
 
               <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl h-11">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Link
+                {editingLinkId ? <Edit2 className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                {editingLinkId ? 'Update Link' : 'Add Link'}
               </Button>
             </form>
           </CardContent>
@@ -238,8 +313,13 @@ export default function AdminPage() {
         {/* ADD CATEGORY FORM */}
         <div className="space-y-8">
           <Card className="glass border-none shadow-none text-slate-200 rounded-2xl overflow-hidden">
-            <CardHeader>
-              <CardTitle className="text-xl text-slate-100">New Category</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-xl text-slate-100">{editingCategoryId ? 'Edit Category' : 'New Category'}</CardTitle>
+              {editingCategoryId && (
+                <Button variant="ghost" size="sm" onClick={cancelEditCategory} className="text-slate-400 hover:text-white">
+                  <X className="w-4 h-4 mr-1" /> Cancel
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddCategory} className="space-y-5">
@@ -295,7 +375,7 @@ export default function AdminPage() {
                                 <div className="flex items-center gap-2 px-2 py-1 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
                                     <img src={categoryCustomIcon} className="w-4 h-4 object-contain rounded" />
                                     <span className="text-[9px] text-indigo-300 font-bold text-xs uppercase">Uploaded</span>
-                                    <button type="button" onClick={() => setCategoryCustomIcon(undefined)}><X className="w-3 h-3 text-red-400" /></button>
+                                    <button type="button" onClick={() => setCategoryCustomIcon(editingCategoryId ? null : undefined)}><X className="w-3 h-3 text-red-400" /></button>
                                 </div>
                             )}
                       </div>
@@ -303,8 +383,8 @@ export default function AdminPage() {
                 </div>
 
                 <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl h-11">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Category
+                  {editingCategoryId ? <Edit2 className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+                  {editingCategoryId ? 'Update Category' : 'Create Category'}
                 </Button>
               </form>
             </CardContent>
@@ -328,12 +408,20 @@ export default function AdminPage() {
                       </div>
                       <span className="font-bold text-slate-200 text-sm truncate uppercase tracking-wider">{cat.name}</span>
                     </div>
-                    <button 
-                      onClick={() => handleDeleteCategory(cat.id)}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => startEditCategory(cat)}
+                        className="text-slate-400 hover:text-indigo-400 hover:bg-indigo-400/10 p-2 rounded-lg transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteCategory(cat.id)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-400/10 p-2 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -370,12 +458,20 @@ export default function AdminPage() {
                       </div>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => handleDeleteLink(link.id)}
-                    className="shrink-0 text-red-500 hover:text-red-400 hover:bg-red-400/10 p-2 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button 
+                      onClick={() => startEditLink(link)}
+                      className="text-slate-400 hover:text-indigo-400 hover:bg-indigo-400/10 p-2 rounded-lg transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteLink(link.id)}
+                      className="text-red-500 hover:text-red-400 hover:bg-red-400/10 p-2 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               );
             })}

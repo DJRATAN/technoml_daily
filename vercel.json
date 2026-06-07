@@ -1,0 +1,17 @@
+{
+  "crons": [
+    {
+      "path": "/api/keep-alive",
+      "schedule": "0 0 */5 * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/:path*",
+      "destination": "/:path*"
+    }
+  ],
+  "redirects": [],
+  "trailingSlash": false,
+  "cleanUrls": true
+}
